@@ -97,3 +97,5 @@ void tridiagonalize_full(double *A, int n, int k, double *d, double *e) {
     free(A_local);
     free(Q);
 }
+
+//test
