@@ -105,4 +105,61 @@ void tridiagonalize_full(double *A, int n, int k, double *d, double *e) {
     free(Q);
 }
 
+int step_qr_tridiag(double *d, double *e, int m, double eps){
+    if(m<2){  //matrice de taille 1
+        return m;
+    }
+
+    //clacul du coeff de Wilkinson
+    double delta = (d[m-2] - d[m-1])/2.0;
+    // printf("%f et %f", d[m-2], d[m-1]);
+    double signe = sign(delta);
+    double term = delta + signe * sqrt(delta * delta + e[m-1] * e[m-1]);
+    double mu = d[m-1] - e[m-1] * e[m-1] / term;
+
+
+    //rota de gibvens
+    double x = d[0] - mu;
+    double y = e[1];
+
+    //
+    for(int i = 0; i<m-1; i++){
+        double c,s;
+        if(fabs(x) < 1e-15){
+            c = 0;
+            s = 1; //on évite la division par 0 (merci gpt)
+        }
+        else{
+            double r = sqrt(x*x + y*y); // pour normaliser les vecteurs
+            c = fabs(x) / r;
+            s = sign(x) * y / r;
+        }
+        if(i>0){
+            e[i] = s*x;
+        }
+        double d_i = c * x - s * y; //
+
+        y = s * d[i+1];
+        x = d_i - mu;
+        
+        d[i+1] = c * d[i+1] + s * y;
+        
+        
+
+        if (i < m - 2) {
+            double next_z = e[i+2];
+            double temp = e[i+1];        // Sauvegarde de la valeur originale
+            e[i+1] = c * temp - s * next_z;  // Première transformation
+            y = s * temp;                // Utilise la valeur originale pour z
+        }
+    }
+    //vérification de la convergence 
+    for (int j = m - 1; j > 0; j--) {
+        if (fabs(e[j]) <= eps * (fabs(d[j-1]) + fabs(d[j]))) {
+            return j;  // Une valeur propre a été isolée
+        }
+    }
+
+    return m; // aucune valeur propre a été isolée :(
+}
 //test
