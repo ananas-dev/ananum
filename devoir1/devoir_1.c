@@ -14,8 +14,8 @@ void tridiagonalize_full(double *A, int n, int k, double *d, double *e) {
     double *x = d;
 
     // Temporary matricies with upper bound sizes
-    double *Q = malloc((n - 1) * (n - 1) * sizeof(double));
-    double *A_local = malloc((n - 1) * n * sizeof(double));
+    double *Q = malloc(n * n * sizeof(double));
+    double *A_local = malloc(n * n * sizeof(double));
 
     for (int i = 0; i < n - 2; i++) {
         int x_size = n - 1 - i;
@@ -31,6 +31,11 @@ void tridiagonalize_full(double *A, int n, int k, double *d, double *e) {
 
         // vk normalization
         double vk_norm = cblas_dnrm2(x_size, vk, 1);
+
+        if (fabs(vk_norm < 1e-12)) {
+            continue;
+        }
+
         cblas_dscal(x_size, 1 / vk_norm, vk, 1);
 
         // Q = I - 2 * vk * vk^T
