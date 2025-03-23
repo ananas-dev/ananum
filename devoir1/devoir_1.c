@@ -144,8 +144,7 @@ int step_qr_tridiag(double *d, double *e, int m, double eps){
 
 
     //variable pour la rotation
-    double c, s, r;
-    double a, b, temp;
+    double a, b, r;
     e[0] = e[1];
     //rotation gauche 
     for (int k = 0; k < m-1; k++){
@@ -155,7 +154,7 @@ int step_qr_tridiag(double *d, double *e, int m, double eps){
 
         //rotation
         d[k] = (d[k] * a + b*e[k+1])/r;        
-        d[k+1] = (-b * e[k+1] + a*d[k+1])/r;
+        d[k+1] = (-b * e[0] + a*d[k+1])/r;
         e[k+1] = (a*e[0] + b * d[k+1])/r;                
         if(k<m-2){
             e[0] = a * e[k+2]/r;       //e[0] = e_2 cos(theta)
@@ -168,8 +167,8 @@ int step_qr_tridiag(double *d, double *e, int m, double eps){
         b = e[k+1];
         r = sqrt(a*a + b*b);
         d[k] = (d[k] * a +e[k+1]*b)/r;
-        e[k+1] = (b*d[k+1])/r;
-        d[k+1] = (a*d[k+1])/r;
+        e[k+1] = (b*d[k+1] + a*e[k+1])/r;
+        d[k+1] = (a*d[k+1] - b*e[k+1])/r;
     }
 
     if (fabs(e[m-1]) <= eps * (fabs(d[m-2]) + fabs(d[m-1]))) {
