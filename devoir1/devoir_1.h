@@ -17,4 +17,4 @@ int step_qr_tridiag(double *d, double *e, int m, double eps);
 Une fonction qui calcule l’entièreté du spectre d’une matrice bande symétrique en faisant appel à
 vos deux fonctions précedentes.
 */
-int qr_eigs_full(double *A, int n, int k, double eps, int max_iter);
+int qr_eigs_full(double *A, int n, int k, double eps, int max_iter, double *d);

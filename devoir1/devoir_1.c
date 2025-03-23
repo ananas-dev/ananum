@@ -4,10 +4,12 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "debug.h"
+#include <string.h>
 
 double sign(double x) {
     return (x >= 0) - (x < 0);
 }
+
 
 void tridiagonalize_full(double *A, int n, int k, double *d, double *e) {
     // since they are the same size
@@ -22,7 +24,7 @@ void tridiagonalize_full(double *A, int n, int k, double *d, double *e) {
         int x_size = n - 1 - i;
 
         // x = A_{i+1:n,i}
-        cblas_dcopy(x_size, &A[(i + 1) * n + i], n, x, 1);
+        cblas_dcopy(x_size, &A[(i + 1) * n + i], n, x, 1);  
 
         double x_norm = cblas_dnrm2(x_size, x, 1);
 
@@ -115,26 +117,11 @@ void tridiagonalize_full(double *A, int n, int k, double *d, double *e) {
 // b c
 
 int step_qr_tridiag(double *d, double *e, int m, double eps){
-    if (m <= 1)
-        return m;  // Rien à faire pour une matrice 1x1
-    if (fabs(e[m-1]) <= eps * (fabs(d[m-2]) + fabs(d[m-1]))) {
-        // Dernière valeur propre isolée
-        return m-1;
-    }
-    
 
-    //calcul de la valeur propre la plus proche de c 
-    double d_n1, d_n, e_n, vp_1, vp_2, mu;
-
-    d_n1 = d[m-2];
-    e_n = e[m-2];
-    d_n = d[m-1];
-    
-    //calcul des deux vp
-    vp_1 = (d_n1 +d_n + sqrt((d_n1 +d_n)*(d_n1 +d_n) - 4*(d_n * d_n1-e_n*e_n)))/2.0;
-    vp_2 = (d_n1 +d_n - sqrt((d_n1 +d_n)*(d_n1 +d_n) - 4*(d_n * d_n1-e_n*e_n)))/2.0;
-
-    mu = fabs(d_n - vp_1) < fabs(d_n - vp_2) ? vp_1 : vp_2;
+    // Compute Wilkinson shift (see Trefthen pg. 222)
+    double mu;
+    double del = (d[m - 2] - d[m - 1]) / 2.0;
+    mu = d[m - 1] + del - copysign(sqrt(del * del + e[m - 2] * e[m - 2]), del);
 
 
     //on applique le shift
@@ -143,8 +130,9 @@ int step_qr_tridiag(double *d, double *e, int m, double eps){
     }
 
 
-    //variable pour la rotation
+    //variable pour la rotation     GOOD
     double a, b, r;
+    double d_k, d_k1, e_k1;
     double all_c[m];
     double all_s[m]; 
     e[0] = e[1];
@@ -156,35 +144,62 @@ int step_qr_tridiag(double *d, double *e, int m, double eps){
         double c = a/r ;all_c[k] = c;
         double s = b/r; all_s[k] = s;
 
+        d_k = d[k]; d_k1 = d[k+1]; e_k1 = e[k+1];
+
         //rotation
-        d[k] = d[k] * c + s*e[k+1];        
-        d[k+1] = -s * e[0] + c*d[k+1];
-        e[k+1] = c*e[0] + b * d[k+1];                
-        if(k<m-2){
-            e[0] = c * e[k+2];       //e[0] = e_2 cos(theta)
-        }
+        d[k] = d_k * c + s*e_k1;        
+        d[k+1] = -s * e[0] + c*d_k1;
+        e[k+1] = c*e[0] + s * d_k1;                
+
+        e[0] = c * e[k+2];       //e[0] = e_2 cos(theta)
     }
 
-    //rotation droite
+    //rotation droite  GOOD
     for (int k = 0; k < m-1; k++){
         d[k] = d[k] * all_c[k] +e[k+1]*all_s[k];
         e[k+1] = all_s[k]*d[k+1];
         d[k+1] = all_c[k]*d[k+1];
-
-        // d[k] = (d[k] * a +e[k+1]*b)/r;
-        // e[k+1] = (b*d[k+1] + a*e[k+1])/r;
-        // d[k+1] = (a*d[k+1] - b*e[k+1])/r;  //cette version est + proche de la vérité je crois mais elle converge jamais
     }
 
+    //on redécale
     for (int i = 0; i < m; i++) {
         d[i] += mu;
     }
+
 
     if (fabs(e[m-1]) <= eps * (fabs(d[m-2]) + fabs(d[m-1]))) {
         // Dernière valeur propre isolée
         return m-1;
     }
-
     return m; // aucune valeur propre a été isolée :(
 }
-//test
+
+
+
+
+//marche normalement
+int qr_eigs_full(double *A, int n, int k, double eps, int max_iter, double *d){
+    double *d_A = malloc(sizeof(double) * n);
+    double *e_A = malloc(sizeof(double) * n);
+    tridiagonalize_full(A, n, k, d_A, e_A);
+
+    int m = n;
+    int total_iter = 0;
+    
+    while (m > 1 && total_iter < max_iter) {
+        int m_new = step_qr_tridiag(d_A, e_A, m, eps);
+        
+        if (m_new == m) {
+            // Pas de convergence lors de cette étape
+            total_iter++;
+        } else {
+            // Une valeur propre a été isolée
+            m = m_new;
+            total_iter++;
+        }
+    }
+    for(int i = 0; i<n; i++){
+        d[i] = d_A[i];
+    }
+    return total_iter;
+}

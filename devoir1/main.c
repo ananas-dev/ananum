@@ -34,68 +34,50 @@ void print_array(double *arr, int n, const char *name) { // écrit par chat gpt
 }
 
 // Fonction pour tester l'algorithme QR complet (plusieurs itérations) écrit par chat gpt 
-void test_complete_qr(double *d, double *e, int n, double eps, int max_iter) {
-    printf("\nTest de l'algorithme QR complet :\n");
-    printf("=================================\n");
+// int test_complete_qr(double *A, int n, int k, double eps, int max_iter, double *d) {
+
+//     double *dA = malloc(sizeof(double) * n);
+//     double *eA = malloc(sizeof(double) * n);
+//     tridiagonalize_full(A, n, k, dA, eA);
+
+
+//     printf("\nTest de l'algorithme QR complet :\n");
+//     printf("=================================\n");
     
-    // Sauvegarde des tableaux originaux
-    double *d_orig = malloc(n * sizeof(double));
-    double *e_orig = malloc(n * sizeof(double));
-    memcpy(d_orig, d, n * sizeof(double));
-    memcpy(e_orig, e, n * sizeof(double));
+//     // Sauvegarde des tableaux originaux
+//     double *d_orig = malloc(n * sizeof(double));
+//     double *e_orig = malloc(n * sizeof(double));
+//     memcpy(d_orig, dA, n * sizeof(double));
+//     memcpy(e_orig, eA, n * sizeof(double));
+
+//     int m = n;
+//     int total_iter = 0;
     
-    printf("Valeurs diagonales initiales :\n");
-    print_array(d, n, "d");
-    printf("Valeurs super-diagonales initiales :\n");
-    print_array(e, n, "e");
-    
-    int m = n;
-    int total_iter = 0;
-    
-    while (m > 1 && total_iter < max_iter) {
-        printf("\nItération %d, taille du problème : %d\n", total_iter + 1, m);
+//     while (m > 1 && total_iter < max_iter) {
+//         int m_new = step_qr_tridiag(dA, eA, m, eps);
         
-        int m_new = step_qr_tridiag(d, e, m, eps);
-        
-        printf("Après step_qr_tridiag :\n");
-        print_array(d, n, "d");
-        print_array(e, n, "e");
-        
-        if (m_new == m) {
-            // Pas de convergence lors de cette étape
-            total_iter++;
-            printf("Pas de convergence, continue...\n");
-        } else {
-            // Une valeur propre a été isolée
-            printf("Valeur propre isolée à l'indice %d : %.6f\n", m_new, d[m_new]);
-            m = m_new;
-            total_iter = 0; // Réinitialise le compteur d'itérations
-        }
-    }
+//         if (m_new == m) {
+//             // Pas de convergence lors de cette étape
+//             total_iter++;
+//         } else {
+//             // Une valeur propre a été isolée
+//             printf("Valeur propre isolée à l'indice %d : %.6f\n", m_new, d[m_new]);
+//             m = m_new;
+//             total_iter++;
+//         }
+//     }
+
+//     memcpy(dA, d_orig, n * sizeof(double));
+//     memcpy(eA, e_orig, n * sizeof(double));
     
-    if (m == 1 || total_iter < max_iter) {
-        printf("\nConvergence atteinte après %d itérations !\n", total_iter);
-        printf("Valeurs propres calculées :\n");
-        for (int i = 0; i < n; i++) {
-            printf("λ%d = %.6f\n", i+1, d[i]);
-        }
-    } else {
-        printf("\nL'algorithme n'a pas convergé après %d itérations.\n", max_iter);
-    }
-    
-    // Restauration des tableaux originaux pour tests ultérieurs si nécessaire
-    memcpy(d, d_orig, n * sizeof(double));
-    memcpy(e, e_orig, n * sizeof(double));
-    
-    free(d_orig);
-    free(e_orig);
-}
+//     free(d_orig);
+//     free(e_orig);
+
+//     return total_iter;
+// }
 
 
 int main() {  //tests écrits par chat gpt
-    int n = 3;
-    double eps = 1e-20;
-    int max_iter = 100;
 
     // Matrice symétrique de test
     // double A[] = {
@@ -106,57 +88,71 @@ int main() {  //tests écrits par chat gpt
     //     9.0,  7.0,  2.0,  2.0,  8.0
     // };
 
+    // int n = 4;
+    // double eps = 1e-20;
+    // int max_iter = 100;
+
+    // double A[] = {
+    //     2.0,  2.0,  0.0, 0.0,
+    //     2.0,  8.0,  0.0, 0.0,
+    //     0.0,  0.0,  9.0, 6.0,
+    //     0.0,  0.0,  6.0, 6.0
+    // };
+
+
+    int n = 3;
+    double eps = 1e-20;
+    int max_iter = 1000;
+
     double A[] = {
-        2.0,  2.0,  0.0,
-        2.0,  5.0,  0.0, 
-        0.0,  0.0,  9.0 
+        2.0,  0.0,  0.0,
+        0.0,  8.0,  2.0,
+        0.0,  2.0,  9.0
     };
+
+
+
+    // int n = 3;
+    // double eps = 1e-20;
+    // int max_iter = 100;  le code marche pour des matrices diagonales
+
+    // double A[] = {
+    //     2.0,  0.0,  0.0,
+    //     0.0,  8.0,  0.0,
+    //     0.0,  0.0,  9.0
+    // };
+
 
     double *d = malloc(sizeof(double) * n);
     double *e = malloc(sizeof(double) * n);
 
-    printf("Matrice originale :\n");
-    print_mat(A, n, n, "A");
+    // printf("Matrice originale :\n");
+    // print_mat(A, n, n, "A");
 
-    // Tridiagonalisation de la matrice
-    tridiagonalize_full(A, n, 0, d, e);
+    // // Tridiagonalisation de la matrice
+    // tridiagonalize_full(A, n, 0, d, e);
     
-    printf("\nMatrice tridiagonalisée :\n");
-    print_mat(A, n, n, "H");
+    // printf("\nMatrice tridiagonalisée :\n"); 
+    // print_mat(A, n, n, "H");
     
-    printf("\nValeurs diagonales et super-diagonales extraites :\n");
-    print_array(d, n, "d");
-    print_array(e, n, "e");
+    //int qr_eigs_full(double *A, int n, int k, double eps, int max_iter, double *d){
+    double *A_copy = malloc(sizeof(A));
+    memcpy(A_copy, A, sizeof(A));
+
     
-    // Test d'une étape unique de QR
-    printf("\nTest d'une étape unique de QR :\n");
-    printf("==============================\n");
-    printf("Avant step_qr_tridiag :\n");
-    print_array(d, n, "d");
-    print_array(e, n, "e");
-    
-    int result = step_qr_tridiag(d, e, n, eps);
-    
-    printf("\nAprès step_qr_tridiag :\n");
-    print_array(d, n, "d");
-    print_array(e, n, "e");
-    printf("Résultat : %d\n", result);
-    
-    if (result < n) {
-        printf("Une valeur propre a été isolée à l'indice %d : %.6f\n", result, d[result]);
-    } else {
-        printf("Aucune valeur propre n'a été isolée.\n");
-    }
-    
-    // Réinitialisation des tableaux pour le test complet
-    tridiagonalize_full(A, n, 0, d, e);
-    
-    // Test de l'algorithme QR complet
-    test_complete_qr(d, e, n, eps, max_iter);
-    
-    // Libération de la mémoire
-    free(e);
+    tridiagonalize_full(A_copy, n, 0, d, e);
+    printf("\nMatrice tridiagonalisée :\n"); 
+    print_mat(A_copy, n, n, "H");    
+
+    int iter = qr_eigs_full(A_copy, n, 0, eps, max_iter,d);
+    for(int i = 0; i<n; i++){
+        printf("valeur propre isolée numéro %d : %f\n", i, d[i]);
+    }    
+    printf("nombre max d'itération : %d\n", iter);
     free(d);
+    free(A_copy);
 
     return 0;
 }
+
+
