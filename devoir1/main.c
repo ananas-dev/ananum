@@ -94,6 +94,30 @@ void test_complete_qr(double *d, double *e, int n, double eps, int max_iter) {
     free(e_orig);
 }
 
+void eigenvalues_qr(double *d, double *e, int n, double eps, int max_iter) {
+    int m = n;
+    int total_iter = 0;
+    
+    while (m > 1 && total_iter < max_iter) {
+        int m_new = step_qr_tridiag(d, e, m, eps);
+        
+        if (m_new == m) {
+            total_iter++;
+        } else {
+            m = m_new;
+            total_iter = 0;
+        }
+    }
+    
+    if (m == 1 || total_iter < max_iter) {
+        for (int i = 0; i < n; i++) {
+            printf("%lf\n", d[i]);
+        }
+    } else {
+        exit(1);
+    }
+}
+
 double *load_matrix(const char *filename, int *n) {
     FILE *file = fopen(filename, "r");
     assert(file != NULL);
@@ -118,14 +142,11 @@ int main(int argc, char **argv) {
     double *A = load_matrix(argv[1], &n);
     assert(A != NULL);
 
-    print_mat(A, n, n, "A");
-
     double *d = malloc(n * sizeof(double));
     double *e = malloc(n * sizeof(double));
 
     tridiagonalize_full(A, n, -1, d, e);
-
-    test_complete_qr(d, e, n, 1e-12, 1000);
+    eigenvalues_qr(d, e, n, 1e-12, 1000);
 
     free(e);
     free(d);

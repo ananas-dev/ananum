@@ -1,5 +1,5 @@
 import numpy as np
-from utils import save_matrix
+from solver import eig
 
 start = -1
 end = 1
@@ -21,4 +21,8 @@ for i in range(0, n):
 
 A = 1/(h**2) * A
 
-save_matrix("laplacian.bin", A)
+eigenvalues, _ = np.linalg.eig(A)
+print("Eigenvalues numpy:", eigenvalues)
+
+eigenvalues = eig(A)
+print("Eigenvalues C:", eigenvalues)
