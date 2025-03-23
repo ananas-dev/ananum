@@ -167,8 +167,16 @@ int step_qr_tridiag(double *d, double *e, int m, double eps){
         b = e[k+1];
         r = sqrt(a*a + b*b);
         d[k] = (d[k] * a +e[k+1]*b)/r;
-        e[k+1] = (b*d[k+1] + a*e[k+1])/r;
-        d[k+1] = (a*d[k+1] - b*e[k+1])/r;
+        e[k+1] = (b*d[k+1])/r;
+        d[k+1] = (a*d[k+1])/r;
+
+        // d[k] = (d[k] * a +e[k+1]*b)/r;
+        // e[k+1] = (b*d[k+1] + a*e[k+1])/r;
+        // d[k+1] = (a*d[k+1] - b*e[k+1])/r;  //cette version est + proche de la vérité je crois mais elle converge jamais
+    }
+
+    for (int i = 0; i < m; i++) {
+        d[i] += mu;
     }
 
     if (fabs(e[m-1]) <= eps * (fabs(d[m-2]) + fabs(d[m-1]))) {
