@@ -3,7 +3,10 @@
 #include <string.h>
 #include <time.h>
 #include "debug.h"
-#include <stdio.h> //
+#include <stdio.h>
+#include <endian.h>
+#include <assert.h>
+#include <stdint.h>
 
 void fill_symmetric_matrix(double *A, int n) {
     for (int i = 0; i < n; i++) {
@@ -34,125 +37,97 @@ void print_array(double *arr, int n, const char *name) { // écrit par chat gpt
 }
 
 // Fonction pour tester l'algorithme QR complet (plusieurs itérations) écrit par chat gpt 
-// int test_complete_qr(double *A, int n, int k, double eps, int max_iter, double *d) {
-
-//     double *dA = malloc(sizeof(double) * n);
-//     double *eA = malloc(sizeof(double) * n);
-//     tridiagonalize_full(A, n, k, dA, eA);
-
-
-//     printf("\nTest de l'algorithme QR complet :\n");
-//     printf("=================================\n");
+void test_complete_qr(double *d, double *e, int n, double eps, int max_iter) {
+    printf("\nTest de l'algorithme QR complet :\n");
+    printf("=================================\n");
     
-//     // Sauvegarde des tableaux originaux
-//     double *d_orig = malloc(n * sizeof(double));
-//     double *e_orig = malloc(n * sizeof(double));
-//     memcpy(d_orig, dA, n * sizeof(double));
-//     memcpy(e_orig, eA, n * sizeof(double));
-
-//     int m = n;
-//     int total_iter = 0;
+    // Sauvegarde des tableaux originaux
+    double *d_orig = malloc(n * sizeof(double));
+    double *e_orig = malloc(n * sizeof(double));
+    memcpy(d_orig, d, n * sizeof(double));
+    memcpy(e_orig, e, n * sizeof(double));
     
-//     while (m > 1 && total_iter < max_iter) {
-//         int m_new = step_qr_tridiag(dA, eA, m, eps);
+    printf("Valeurs diagonales initiales :\n");
+    print_array(d, n, "d");
+    printf("Valeurs super-diagonales initiales :\n");
+    print_array(e, n, "e");
+    
+    int m = n;
+    int total_iter = 0;
+    
+    while (m > 1 && total_iter < max_iter) {
+        printf("\nItération %d, taille du problème : %d\n", total_iter + 1, m);
         
-//         if (m_new == m) {
-//             // Pas de convergence lors de cette étape
-//             total_iter++;
-//         } else {
-//             // Une valeur propre a été isolée
-//             printf("Valeur propre isolée à l'indice %d : %.6f\n", m_new, d[m_new]);
-//             m = m_new;
-//             total_iter++;
-//         }
-//     }
-
-//     memcpy(dA, d_orig, n * sizeof(double));
-//     memcpy(eA, e_orig, n * sizeof(double));
+        int m_new = step_qr_tridiag(d, e, m, eps);
+        
+        printf("Après step_qr_tridiag :\n");
+        print_array(d, n, "d");
+        print_array(e, n, "e");
+        
+        if (m_new == m) {
+            // Pas de convergence lors de cette étape
+            total_iter++;
+            printf("Pas de convergence, continue...\n");
+        } else {
+            // Une valeur propre a été isolée
+            printf("Valeur propre isolée à l'indice %d : %.6f\n", m_new, d[m_new]);
+            m = m_new;
+            total_iter = 0; // Réinitialise le compteur d'itérations
+        }
+    }
     
-//     free(d_orig);
-//     free(e_orig);
-
-//     return total_iter;
-// }
-
-
-int main() {  //tests écrits par chat gpt
-
-    // Matrice symétrique de test
-    // double A[] = {
-    //     6.0,  0.0,  5.0,  0.0,  9.0,
-    //     0.0,  5.0,  5.0,  0.0,  7.0,
-    //     5.0,  5.0,  9.0,  0.0,  2.0,
-    //     0.0,  0.0,  0.0,  6.0,  2.0,
-    //     9.0,  7.0,  2.0,  2.0,  8.0
-    // };
-
-    // int n = 4;
-    // double eps = 1e-20;
-    // int max_iter = 100;
-
-    // double A[] = {
-    //     2.0,  2.0,  0.0, 0.0,
-    //     2.0,  8.0,  0.0, 0.0,
-    //     0.0,  0.0,  9.0, 6.0,
-    //     0.0,  0.0,  6.0, 6.0
-    // };
-
-
-    int n = 3;
-    double eps = 1e-20;
-    int max_iter = 1000;
-
-    double A[] = {
-        2.0,  0.0,  0.0,
-        0.0,  8.0,  2.0,
-        0.0,  2.0,  9.0
-    };
-
-
-
-    // int n = 3;
-    // double eps = 1e-20;
-    // int max_iter = 100;  le code marche pour des matrices diagonales
-
-    // double A[] = {
-    //     2.0,  0.0,  0.0,
-    //     0.0,  8.0,  0.0,
-    //     0.0,  0.0,  9.0
-    // };
-
-
-    double *d = malloc(sizeof(double) * n);
-    double *e = malloc(sizeof(double) * n);
-
-    // printf("Matrice originale :\n");
-    // print_mat(A, n, n, "A");
-
-    // // Tridiagonalisation de la matrice
-    // tridiagonalize_full(A, n, 0, d, e);
+    if (m == 1 || total_iter < max_iter) {
+        printf("\nConvergence atteinte après %d itérations !\n", total_iter);
+        printf("Valeurs propres calculées :\n");
+        for (int i = 0; i < n; i++) {
+            printf("λ%d = %.6f\n", i+1, d[i]);
+        }
+    } else {
+        printf("\nL'algorithme n'a pas convergé après %d itérations.\n", max_iter);
+    }
     
-    // printf("\nMatrice tridiagonalisée :\n"); 
-    // print_mat(A, n, n, "H");
+    // Restauration des tableaux originaux pour tests ultérieurs si nécessaire
+    memcpy(d, d_orig, n * sizeof(double));
+    memcpy(e, e_orig, n * sizeof(double));
     
-    //int qr_eigs_full(double *A, int n, int k, double eps, int max_iter, double *d){
-    double *A_copy = malloc(sizeof(A));
-    memcpy(A_copy, A, sizeof(A));
-
-    
-    tridiagonalize_full(A_copy, n, 0, d, e);
-    printf("\nMatrice tridiagonalisée :\n"); 
-    print_mat(A_copy, n, n, "H");    
-
-    int iter = qr_eigs_full(A_copy, n, 0, eps, max_iter,d);
-    for(int i = 0; i<n; i++){
-        printf("valeur propre isolée numéro %d : %f\n", i, d[i]);
-    }    
-    printf("nombre max d'itération : %d\n", iter);
-    free(d);
-    free(A_copy);
-
-    return 0;
+    free(d_orig);
+    free(e_orig);
 }
 
+double *load_matrix(const char *filename, int *n) {
+    FILE *file = fopen(filename, "r");
+    assert(file != NULL);
 
+    uint32_t n_temp;
+    fread(&n_temp, sizeof(uint32_t), 1, file);
+
+    *n = n_temp;
+
+    double *A = malloc(n_temp * n_temp * sizeof(double));
+    assert(A != NULL);
+
+    fread(A, sizeof(double), n_temp * n_temp, file);
+
+    return A;
+}
+
+int main(int argc, char **argv) {
+    assert(argc == 2);
+
+    int n;
+    double *A = load_matrix(argv[1], &n);
+    assert(A != NULL);
+
+    print_mat(A, n, n, "A");
+
+    double *d = malloc(n * sizeof(double));
+    double *e = malloc(n * sizeof(double));
+
+    tridiagonalize_full(A, n, -1, d, e);
+
+    test_complete_qr(d, e, n, 1e-12, 1000);
+
+    free(e);
+    free(d);
+    free(A);
+}
