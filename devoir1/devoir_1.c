@@ -15,6 +15,7 @@ void tridiagonalize_full(double *A, int n, int k, double *d, double *e) {
 
     // Temporary matricies with upper bound sizes
     double *Q = malloc(n * n * sizeof(double));
+    
     double *A_local = malloc(n * n * sizeof(double));
 
     for (int i = 0; i < n - 2; i++) {
@@ -110,59 +111,70 @@ void tridiagonalize_full(double *A, int n, int k, double *d, double *e) {
     free(Q);
 }
 
+// a b
+// b c
+
 int step_qr_tridiag(double *d, double *e, int m, double eps){
-    if(m<2){  //matrice de taille 1
-        return m;
+    if (m <= 1)
+        return m;  // Rien à faire pour une matrice 1x1
+    if (fabs(e[m-1]) <= eps * (fabs(d[m-2]) + fabs(d[m-1]))) {
+        // Dernière valeur propre isolée
+        return m-1;
+    }
+    
+
+    //calcul de la valeur propre la plus proche de c 
+    double d_n1, d_n, e_n, vp_1, vp_2, mu;
+
+    d_n1 = d[m-2];
+    e_n = e[m-2];
+    d_n = d[m-1];
+    
+    //calcul des deux vp
+    vp_1 = (d_n1 +d_n + sqrt((d_n1 +d_n)*(d_n1 +d_n) - 4*(d_n * d_n1-e_n*e_n)))/2.0;
+    vp_2 = (d_n1 +d_n - sqrt((d_n1 +d_n)*(d_n1 +d_n) - 4*(d_n * d_n1-e_n*e_n)))/2.0;
+
+    mu = fabs(d_n - vp_1) < fabs(d_n - vp_2) ? vp_1 : vp_2;
+
+
+    //on applique le shift
+    for (int i = 0; i < m; i++) {
+        d[i] -= mu;
     }
 
-    //clacul du coeff de Wilkinson
-    double delta = (d[m-2] - d[m-1])/2.0;
-    // printf("%f et %f", d[m-2], d[m-1]);
-    double signe = sign(delta);
-    double term = delta + signe * sqrt(delta * delta + e[m-1] * e[m-1]);
-    double mu = d[m-1] - e[m-1] * e[m-1] / term;
 
+    //variable pour la rotation
+    double c, s, r;
+    double a, b, temp;
+    e[0] = e[1];
+    //rotation gauche 
+    for (int k = 0; k < m-1; k++){
+        a = d[k];
+        b = e[k+1];
+        r = sqrt(a*a + b*b);
 
-    //rota de gibvens
-    double x = d[0] - mu;
-    double y = e[1];
-
-    //
-    for(int i = 0; i<m-1; i++){
-        double c,s;
-        if(fabs(x) < 1e-15){
-            c = 0;
-            s = 1; //on évite la division par 0 (merci gpt)
-        }
-        else{
-            double r = sqrt(x*x + y*y); // pour normaliser les vecteurs
-            c = fabs(x) / r;
-            s = sign(x) * y / r;
-        }
-        if(i>0){
-            e[i] = s*x;
-        }
-        double d_i = c * x - s * y; //
-
-        y = s * d[i+1];
-        x = d_i - mu;
-        
-        d[i+1] = c * d[i+1] + s * y;
-        
-        
-
-        if (i < m - 2) {
-            double next_z = e[i+2];
-            double temp = e[i+1];        // Sauvegarde de la valeur originale
-            e[i+1] = c * temp - s * next_z;  // Première transformation
-            y = s * temp;                // Utilise la valeur originale pour z
+        //rotation
+        d[k] = (d[k] * a + b*e[k+1])/r;        
+        d[k+1] = (-b * e[k+1] + a*d[k+1])/r;
+        e[k+1] = (a*e[0] + b * d[k+1])/r;                
+        if(k<m-2){
+            e[0] = a * e[k+2]/r;       //e[0] = e_2 cos(theta)
         }
     }
-    //vérification de la convergence 
-    for (int j = m - 1; j > 0; j--) {
-        if (fabs(e[j]) <= eps * (fabs(d[j-1]) + fabs(d[j]))) {
-            return j;  // Une valeur propre a été isolée
-        }
+
+    //rotation droite
+    for (int k = 0; k < m-1; k++){
+        a = d[k];
+        b = e[k+1];
+        r = sqrt(a*a + b*b);
+        d[k] = (d[k] * a +e[k+1]*b)/r;
+        e[k+1] = (b*d[k+1])/r;
+        d[k+1] = (a*d[k+1])/r;
+    }
+
+    if (fabs(e[m-1]) <= eps * (fabs(d[m-2]) + fabs(d[m-1]))) {
+        // Dernière valeur propre isolée
+        return m-1;
     }
 
     return m; // aucune valeur propre a été isolée :(

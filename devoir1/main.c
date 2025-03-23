@@ -95,7 +95,7 @@ void test_complete_qr(double *d, double *e, int n, double eps, int max_iter) {
 int main() {  //tests écrits par chat gpt
     int n = 3;
     double eps = 1e-20;
-    int max_iter = 20;
+    int max_iter = 100;
 
     // Matrice symétrique de test
     // double A[] = {
@@ -107,7 +107,7 @@ int main() {  //tests écrits par chat gpt
     // };
 
     double A[] = {
-        2.0,  0.0,  0.0,
+        2.0,  2.0,  0.0,
         2.0,  5.0,  0.0, 
         0.0,  0.0,  9.0 
     };
