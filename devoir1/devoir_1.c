@@ -145,30 +145,31 @@ int step_qr_tridiag(double *d, double *e, int m, double eps){
 
     //variable pour la rotation
     double a, b, r;
+    double all_c[m];
+    double all_s[m]; 
     e[0] = e[1];
     //rotation gauche 
     for (int k = 0; k < m-1; k++){
         a = d[k];
         b = e[k+1];
         r = sqrt(a*a + b*b);
+        double c = a/r ;all_c[k] = c;
+        double s = b/r; all_s[k] = s;
 
         //rotation
-        d[k] = (d[k] * a + b*e[k+1])/r;        
-        d[k+1] = (-b * e[0] + a*d[k+1])/r;
-        e[k+1] = (a*e[0] + b * d[k+1])/r;                
+        d[k] = d[k] * c + s*e[k+1];        
+        d[k+1] = -s * e[0] + c*d[k+1];
+        e[k+1] = c*e[0] + b * d[k+1];                
         if(k<m-2){
-            e[0] = a * e[k+2]/r;       //e[0] = e_2 cos(theta)
+            e[0] = c * e[k+2];       //e[0] = e_2 cos(theta)
         }
     }
 
     //rotation droite
     for (int k = 0; k < m-1; k++){
-        a = d[k];
-        b = e[k+1];
-        r = sqrt(a*a + b*b);
-        d[k] = (d[k] * a +e[k+1]*b)/r;
-        e[k+1] = (b*d[k+1])/r;
-        d[k+1] = (a*d[k+1])/r;
+        d[k] = d[k] * all_c[k] +e[k+1]*all_s[k];
+        e[k+1] = all_s[k]*d[k+1];
+        d[k+1] = all_c[k]*d[k+1];
 
         // d[k] = (d[k] * a +e[k+1]*b)/r;
         // e[k+1] = (b*d[k+1] + a*e[k+1])/r;
