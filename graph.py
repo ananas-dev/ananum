@@ -19,7 +19,7 @@ log2_time = np.log2(time)
 slope, intercept, r_value, p_value, std_err = linregress(log2_n, log2_time)
 
 # Generate regression line
-log2_x_fit = np.linspace(0, int(np.log2(30 * 30)) + 1, 100)
+log2_x_fit = np.linspace(int(np.log2(4)), int(np.log2(30 * 30)) + 1, 100)
 log2_y_fit = slope * log2_x_fit + intercept
 
 # Convert back to original scale for plotting
@@ -34,7 +34,12 @@ print(slope)
 
 plt.xscale("log", base=2)
 plt.yscale("log", base=2)
+
+plt.xlabel("nx=ny")
+plt.ylabel("Temps [s]")
+
 plt.grid(True)
 
+plt.savefig("2d.svg")
 
 plt.show()

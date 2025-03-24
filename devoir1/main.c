@@ -7,6 +7,7 @@
 #include <endian.h>
 #include <assert.h>
 #include <stdint.h>
+#include <float.h>
 
 void fill_symmetric_matrix(double *A, int n) {
     for (int i = 0; i < n; i++) {
@@ -94,9 +95,10 @@ void test_complete_qr(double *d, double *e, int n, double eps, int max_iter) {
     free(e_orig);
 }
 
-void eigenvalues_qr(double *d, double *e, int n, double eps, int max_iter) {
+int eigenvalues_qr(double *d, double *e, int n, double eps, int max_iter) {
     int m = n;
     int total_iter = 0;
+    int global_iter = 0;
     
     while (m > 1 && total_iter < max_iter) {
         int m_new = step_qr_tridiag(d, e, m, eps);
@@ -107,9 +109,12 @@ void eigenvalues_qr(double *d, double *e, int n, double eps, int max_iter) {
             m = m_new;
             total_iter = 0;
         }
+
+        global_iter++;
     }
     
     if (m == 1 || total_iter < max_iter) {
+        return global_iter;
         // for (int i = 0; i < n; i++) {
         //     printf("%lf\n", d[i]);
         // }
@@ -138,17 +143,7 @@ double *load_matrix(const char *filename, int *n) {
 
 #define SQUARE(x) ((x) * (x))
 
-/**
- * @brief Fills the matrix with the (opposite of the) Laplacian operator
- * @param nx Number of inner nodes in the x direction
- * @param ny Number of inner nodes in the y direction
- * @param lx Length of the domain in the x direction
- * @param ly Length of the domain in the y direction
- * @param storage 0 if full, 1 if band, 2 if sym_band
- * @return the pointer to the discrete Laplacian matrix
- */
-double *create_matrix(int nx, int ny, double lx, double ly) {
-
+double *create_matrix_laplace_2d(int nx, int ny, double lx, double ly) {
     int lda, k;
     int size = nx * ny; // Number of nodes/unknowns
     double dx2 = SQUARE(lx / (nx + 1));
@@ -190,32 +185,91 @@ double *create_matrix(int nx, int ny, double lx, double ly) {
     return L;
 }
 
+double *create_matrix_laplace_1d(int n, double lx) {
+    double dx2 = SQUARE(lx / (n + 2));
+    double *L;
+
+    double coeff = 1. / dx2;
+
+    L = (double *)calloc(n * n, sizeof(double));
+    for (int i = 0; i < n; i++) {
+        if (i > 0)
+            L[i * n + i - 1] = coeff;
+
+        if (i < n-1)
+            L[i * n + i + 1] = coeff;
+
+        L[i * n + i] = -2.0 * coeff;
+    }
+
+    return L;
+}
+
 void laplace_2d_bench() {
     for (int n = 2; n < 30; n++) {
         struct timespec start, end;
 
         double *d = malloc(n * n * sizeof(double));
-        double *e = malloc(n * n * sizeof(double));
 
-        double *A = create_matrix(n, n, 1.0, 1.0);
-
-        // print_mat(A, n * n, n * n, "A");
+        double *A = create_matrix_laplace_2d(n, n, 1.0, 1.0);
 
         clock_gettime(CLOCK_MONOTONIC, &start);
-        tridiagonalize_full(A, n * n, -1, d, e);
-        eigenvalues_qr(d, e, n * n, 1e-12, 1000);
+        qr_eigs_full(A, n, -1, 1e-12, 1000, d);
+
         clock_gettime(CLOCK_MONOTONIC, &end);
 
         double elapsed = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
         printf("{\"n\": %d, \"time\": %.9f}\n", n, elapsed);
 
         free(A);
+        free(d);
+    }
+}
+
+void laplace_1d_bench() {
+    for (int n = 3; n < 1000; n++) {
+        double *d = malloc(n * sizeof(double));
+        double *e = malloc(n * sizeof(double));
+
+        double *A = create_matrix_laplace_1d(n, 2.0 / n);
+
+        print_mat(A, n, n, "A");
+
+        int iter = qr_eigs_full(A, n, -1, 1e-12, 1000, d);
+
+        for (int i = 0; i < n; i++) {
+            printf("%f\n", d[i]);
+        }
+
+        printf("---\n");
+
+        printf("{\"n\": %d, \"iter\": %d}\n", n, iter);
+
+        break;
+
+        free(A);
         free(e);
         free(d);
     }
-
 }
 
 int main(int argc, char **argv) {
-    laplace_2d_bench();
+    assert(argc == 2);
+
+    int n;
+    double *A = load_matrix(argv[1], &n);
+    assert(A != NULL);
+
+    double *d = malloc(n * sizeof(double));
+    assert(d != NULL);
+
+
+    int iter = qr_eigs_full(A, n, -1, 1e-12, 1000, d);
+
+    for (int i = 0; i < n; i++) {
+        printf("%.*g\n", DBL_DECIMAL_DIG, d[i]);
+    }
+
+    free(d);
+    free(A);
 }

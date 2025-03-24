@@ -2,9 +2,6 @@
 #include <cblas.h>
 #include <math.h>
 #include <stdlib.h>
-#include <stdio.h>
-#include "debug.h"
-#include <string.h>
 
 double sign(double x) {
     return (x >= 0) - (x < 0);
@@ -117,12 +114,12 @@ void tridiagonalize_full(double *A, int n, int k, double *d, double *e) {
 // b c
 
 int step_qr_tridiag(double *d, double *e, int m, double eps){
-
     // Compute Wilkinson shift (see Trefthen pg. 222)
     double mu;
     double del = (d[m - 2] - d[m - 1]) / 2.0;
     mu = d[m - 1] + del - copysign(sqrt(del * del + e[m - 2] * e[m - 2]), del);
 
+    mu += 1e-12;
 
     //on applique le shift
     for (int i = 0; i < m; i++) {
@@ -173,8 +170,6 @@ int step_qr_tridiag(double *d, double *e, int m, double eps){
     }
     return m; // aucune valeur propre a été isolée :(
 }
-
-
 
 
 //marche normalement
