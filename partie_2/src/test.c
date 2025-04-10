@@ -27,6 +27,8 @@ void test_Matvec1() {
     t_assert_double(Av[2], ==, 50.0);
   }
 
+  
+
 int main(int argc, char **argv) {
   testsuite_t *csr_suite = t_registerTestSuite("Matvec");
   t_addTestToSuite(csr_suite, "matvec CSR multiplication 1", test_Matvec1);

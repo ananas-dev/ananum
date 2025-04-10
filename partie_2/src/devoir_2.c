@@ -3,6 +3,37 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+
+
+double dot_product(int n, const double *x, const double *y) {
+    double result = 0.0;
+    for (int i = 0; i < n; ++i) {
+        result += x[i] * y[i];
+    }
+    return result;
+}
+
+//y = y + alpha * x (axpy: alpha * x + y)
+void axpy(int n, double alpha, const double *x, double *y) {
+    for (int i = 0; i < n; ++i) {
+       y[i] += alpha * x[i];
+   }
+} //on peut utiliser cblas si on veut
+
+//x = alpha * x
+void scal(int n, double alpha, double *x) {
+    for (int i = 0; i < n; ++i) {
+       x[i] *= alpha;
+   }
+}
+
+// Copie le vecteur src dans dest
+void copy_vector(int n, const double *src, double *dest) {
+    for (int i = 0; i < n; ++i) {
+       dest[i] = src[i];
+   }
+}
+
 void Matvec(
     int n, int nnz,
     const int *rows_idx,
@@ -30,6 +61,9 @@ void solve(
     const double *b,
     double *x)
 {
+
+    
+
 }
 
 int CG(
@@ -42,6 +76,29 @@ int CG(
     double *x,
     double eps)
 {
+    double *r = (double*)malloc(n * sizeof(double));
+    double *p = (double*)malloc(n * sizeof(double));
+    double *Ap = (double*)malloc(n * sizeof(double));
+
+    if (!r || !p || !Ap) {
+        fprintf(stderr, "Erreur d'allocation mémoire dans CG\n");
+        // Libérer ce qui a pu être alloué
+        free(r);
+        free(p);
+        free(Ap);
+        return -1; // Code d'erreur
+    }
+
+    // x_0 est l'estimation initiale passée en argument.
+    // Calculer r_0 = b - Ax_0
+
+    memset(r, 0, n * sizeof(double)); // Initialiser r à 0 avant Matvec si Matvec accumule
+    Matvec(n, nnz, rows_idx, cols, A, x, r); // r contient Ax_0
+    for(int i=0; i<n; ++i) {
+        r[i] = b[i] - r[i]; // r = b - Ax_0
+    }
+
+    
     return 0;
 }
 
