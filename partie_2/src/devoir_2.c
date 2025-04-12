@@ -2,6 +2,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 
 
@@ -108,7 +109,63 @@ void ILU(
     const int *rows_idx,
     const int *cols,
     const double *A,
-    double *L) {}
+    double *L)
+{
+    memcpy(L, A, nnz * sizeof(double));
+
+    for (int k = 0; k < n; k++) {
+        double L_kk = 0.0;
+        for (int ptr = rows_idx[k]; ptr < rows_idx[k+1]; ptr++) {
+            if (cols[ptr] == k) {
+                L_kk = L[ptr];
+                break;
+            }
+        }
+
+        // Avoid dividing by 0
+        if (fabs(L_kk) < 10e-12) continue;
+
+        for (int ptr_j = rows_idx[k]; ptr_j < rows_idx[k+1]; ptr_j++) {
+            int j = cols[ptr_j];
+
+            int ptr_jk = -1;
+            for (int q = rows_idx[j]; q < rows_idx[j + 1]; q++) {
+                if (cols[q] == k) {
+                    ptr_jk = q;
+                    break;
+                }
+            }
+
+            if (ptr_jk == -1) continue;
+
+            L[ptr_jk] /= L_kk;
+
+            for (int ptr_i = rows_idx[j]; ptr_i < rows_idx[j + 1]; ptr_i++) {
+                int i = cols[ptr_i];
+
+                double L_ik = 0.0;
+                int ptr_ik = -1;
+
+                for (int r = rows_idx[i]; r < rows_idx[i + 1]; ++r) {
+                    if (cols[r] == k) {
+                        L_ik = L[r];
+                        ptr_ik = r;
+                        break;
+                    }
+                }
+
+                if (ptr_ik == -1) continue;
+
+                for (int r = rows_idx[i]; r < rows_idx[i + 1]; ++r) {
+                    if (cols[r] == j) {
+                        L[r] -= L_ik * L[ptr_jk];
+                        break;
+                    }
+                }
+            }
+        }
+    }
+}
 
 int PCG(
     int n,
