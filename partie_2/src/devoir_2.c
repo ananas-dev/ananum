@@ -47,20 +47,6 @@ void Matvec(int n, int nnz,const int *rows_idx,const int *cols,const double *A,c
     }
 }
 
-void solve(
-    int n,
-    int nnz,
-    const int *rows_idx,
-    const int *cols,
-    const double *L,
-    const double *b,
-    double *x)
-{
-
-    
-
-}
-
 int CG(
     int n,
     int nnz,
@@ -68,7 +54,7 @@ int CG(
     const int *cols,
     const double *A,
     const double *b,
-    double *x,
+    double *x, // x est a la fois l'estimation initiale ET la solution finale
     double eps)
 {
     double *r = (double*)malloc(n * sizeof(double));
@@ -77,39 +63,103 @@ int CG(
 
     if (!r || !p || !Ap) {
         fprintf(stderr, "Erreur d'allocation mémoire dans CG\n");
-        // Libérer ce qui a pu être alloué
+        free(r); 
+        free(p);
+        free(Ap);
+        return -1; 
+    }
+
+    // x_0 est l'estimation initiale (contenue dans x à l'entrée).
+    // on pourrait partir de x_0 = 0, il faudrait faire memset(x, 0, n * sizeof(double)) 
+
+    // r_0 = b - Ax_0
+    // calculer Ax_0, résultat dans r temporairement pour évieter de faire trop de malloc inutile
+    Matvec(n, nnz, rows_idx, cols, A, x, r); // r contient Ax_0
+    // calculer b - Ax_0 -> le résultat final va dans r
+    for(int i=0; i<n; i++) {
+        r[i] = b[i] - r[i]; // r = b - Ax_0
+    }
+
+    // p_0 = r_0
+    copy_vector(n, r, p);
+
+    // initialisation
+    double r_sq_old = dot_product(n, r, r);
+    double initial_r_norm = sqrt(r_sq_old); // Norme initiale pour le critère d'arrêt
+    double r_sq_new;
+    double alpha, beta;
+    double pAp;
+
+    // Si le résidu initial est déjà très petit, on a fini
+    if (initial_r_norm < 1e-15) { //chat gpt mais jsp pourquoi on utilise pas eps
         free(r);
         free(p);
         free(Ap);
-        return -1; // Code d'erreur
+        return 0; // convergence immédiate
     }
-
-    // x_0 est l'estimation initiale passée en argument.
-    // Calculer r_0 = b - Ax_0
-
-    memset(r, 0, n * sizeof(double)); // Initialiser r à 0 avant Matvec si Matvec accumule
-    Matvec(n, nnz, rows_idx, cols, A, x, r); // r contient Ax_0 = 0 d'ailleurs
-    for(int i=0; i<n; i++) {
-        r[i] = b[i] - r[i]; // r = b - Ax_0 = b    (moyen on peut changer ça et juste mettre r = b pour l'initialisation)
-    }
-    copy_vector(n, r, p);  //r_0 = p_0
 
     int k = 0;
-    double condition = 2*eps;
-    int iter = 0;
-    int max_iter = 10*n; //au pif mais comme ça ça pète pas une zine
+    // int max_iter = 10*n; // Limite pour éviter boucle infinie
+    int max_iter = 2 * n;
 
-    while(condition < eps && iter > max_iter){
-        //calcule de Ap_k
-        //on fait pour que Ap soit nul parce que matvec ne passe pas par tous Ap
-        memset(Ap, 0, n*sizeof(double) * n); //sizeof(Ap)
-        matvec(n, nnz, rows_idx, cols, A, p, Ap);
+    while (k < max_iter) {
+        // Ap_k = A * p_k
+        // Il faut remettre Ap à zéro car Matvec accumule et ne set rien à 0
+        memset(Ap, 0, n * sizeof(double)); 
+        Matvec(n, nnz, rows_idx, cols, A, p, Ap); 
 
-        double alpha = dot_product(n, r, r)/dot_product(n, p, matvec());
-        
+        // p_k^T * Ap_k
+        pAp = dot_product(n, p, Ap);
+
+        // division par zéro ou un nombre très petit
+        if (fabs(pAp) < 1e-15) {
+             fprintf(stderr, "CG: Division par zéro (p^T A p ~ 0) à l'itération %d\n", k);
+             break; // Arrêter si pAp est trop petit
+        }
+
+        // alpha_k = r_k^T * r_k / (p_k^T * Ap_k)
+        alpha = r_sq_old / pAp; // r_sq_old contient r_k^T * r_k de l'itération précédente
+
+        // x_{k+1} = x_k + alpha_k * p_k
+        axpy(n, alpha, p, x); // x = x + alpha * p
+
+        // r_{k+1} = r_k - alpha_k * Ap_k
+        axpy(n, -alpha, Ap, r); // r = r - alpha * Ap
+
+        // r_{k+1}^T * r_{k+1}
+        r_sq_new = dot_product(n, r, r);
+
+        // critère d'arrêt
+        double current_r_norm = sqrt(r_sq_new);
+
+        if (current_r_norm / initial_r_norm < eps) {
+            k++; // On compte cette dernière itération
+            break; // Convergence atteinte
+        }
+
+        // beta_k = (r_{k+1}^T * r_{k+1}) / (r_k^T * r_k)
+        beta = r_sq_new / r_sq_old;
+
+        //  p_{k+1} = r_{k+1} + beta_k * p_k
+        for(int i=0; i<n; ++i) {
+            p[i] = r[i] + beta * p[i];
+        }
+
+
+        r_sq_old = r_sq_new;
+        k++;
     }
-    
-    return 0;
+
+     if (k == max_iter) {
+         fprintf(stderr, "CG: Convergence non atteinte après %d itérations.\n", max_iter);
+    }
+
+
+    free(r);
+    free(p);
+    free(Ap);
+
+    return k; 
 }
 
 void ILU(
