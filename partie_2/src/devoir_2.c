@@ -34,13 +34,7 @@ void copy_vector(int n, const double *src, double *dest) {
    }
 }
 
-void Matvec(
-    int n, int nnz,
-    const int *rows_idx,
-    const int *cols,
-    const double *A,
-    const double *v,
-    double *Av)
+void Matvec(int n, int nnz,const int *rows_idx,const int *cols,const double *A,const double *v,double *Av)
 {
 
     for(int i = 0; i<n; i++){
@@ -93,11 +87,26 @@ int CG(
     // Calculer r_0 = b - Ax_0
 
     memset(r, 0, n * sizeof(double)); // Initialiser r à 0 avant Matvec si Matvec accumule
-    Matvec(n, nnz, rows_idx, cols, A, x, r); // r contient Ax_0
-    for(int i=0; i<n; ++i) {
-        r[i] = b[i] - r[i]; // r = b - Ax_0
+    Matvec(n, nnz, rows_idx, cols, A, x, r); // r contient Ax_0 = 0 d'ailleurs
+    for(int i=0; i<n; i++) {
+        r[i] = b[i] - r[i]; // r = b - Ax_0 = b    (moyen on peut changer ça et juste mettre r = b pour l'initialisation)
     }
+    copy_vector(n, r, p);  //r_0 = p_0
 
+    int k = 0;
+    double condition = 2*eps;
+    int iter = 0;
+    int max_iter = 10*n; //au pif mais comme ça ça pète pas une zine
+
+    while(condition < eps && iter > max_iter){
+        //calcule de Ap_k
+        //on fait pour que Ap soit nul parce que matvec ne passe pas par tous Ap
+        memset(Ap, 0, n*sizeof(double) * n); //sizeof(Ap)
+        matvec(n, nnz, rows_idx, cols, A, p, Ap);
+
+        double alpha = dot_product(n, r, r)/dot_product(n, p, matvec());
+        
+    }
     
     return 0;
 }
