@@ -48,14 +48,7 @@ void Matvec(int n, int nnz,const int *rows_idx,const int *cols,const double *A,c
 }
 
 int CG(
-    int n,
-    int nnz,
-    const int *rows_idx,
-    const int *cols,
-    const double *A,
-    const double *b,
-    double *x, // x est a la fois l'estimation initiale ET la solution finale
-    double eps)
+    int n,int nnz,const int *rows_idx,const int *cols,const double *A,const double *b,double *x, double eps)
 {
     double *r = (double*)malloc(n * sizeof(double));
     double *p = (double*)malloc(n * sizeof(double));
