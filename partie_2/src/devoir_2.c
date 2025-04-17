@@ -370,6 +370,11 @@ int PCG(
         iter++;
     }
 
+    free(Ad);
+    free(d);
+    free(z);
+    free(r);
+    free(M);
     return iter;
 }
 
