@@ -51,12 +51,42 @@ void test_CG1() {
   t_assert_double(Av[1], ==, v[1]);
   t_assert_double(Av[2], ==, v[2]);
 }
+
+void test_ILU() {
+  int n = 4;
+  int nnz = 10;
+
+  // CSR representation
+  double A[10] = {4, -1,         // Row 0
+                  -1, 4, -1,     // Row 1
+                  -1, 4, -1,     // Row 2
+                  -1, 3};        // Row 3
+
+  int cols[10] = {0, 1,          // Row 0
+                  0, 1, 2,       // Row 1
+                  1, 2, 3,       // Row 2
+                  2, 3};         // Row 3
+
+  int rows_idx[5] = {0, 2, 5, 8, 10}; // Row start indices (n+1 entries)
+
+  double L[10]; // ILU output in same CSR pattern
+
+  ILU(n, nnz, rows_idx, cols, A, L);
+
+  for (int i = 0; i < nnz; i++) {
+    printf("%lf\n", L[i]);
+  }
+
+  t_assert_double(L[0], ==, 1.0);
+  // t_assert_double(L[0], ==, 1.0);
+}
   
 
 int main(int argc, char **argv) {
   testsuite_t *csr_suite = t_registerTestSuite("Matvec");
   t_addTestToSuite(csr_suite, "matvec CSR multiplication 1", test_Matvec1);
   t_addTestToSuite(csr_suite, "CG test", test_CG1);
+  t_addTestToSuite(csr_suite, "ILU test", test_ILU);
 
   return t_runSuites(argc, argv);
 }
