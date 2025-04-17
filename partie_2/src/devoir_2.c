@@ -77,9 +77,12 @@ int CG(
     double *x, // x est a la fois l'estimation initiale ET la solution finale
     double eps)
 {
-    double *r = (double*)malloc(n * sizeof(double));
-    double *p = (double*)malloc(n * sizeof(double));
-    double *Ap = (double*)malloc(n * sizeof(double));
+    // double *r = (double*)malloc(n * sizeof(double));
+    // double *p = (double*)malloc(n * sizeof(double));
+    // double *Ap = (double*)malloc(n * sizeof(double));
+    double *Ap = (double*)calloc(n, sizeof(double));
+    double *r = (double*)calloc(n, sizeof(double));
+    double *p = (double*)calloc(n, sizeof(double));
 
     if (!r || !p || !Ap) {
         fprintf(stderr, "Erreur d'allocation mémoire dans CG\n");

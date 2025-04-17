@@ -165,37 +165,42 @@ void test_CG_SPD_2x2() {
 }
 
 // Test 4: Matrice SPD de test_ILU, x0 = 0
-// void test_CG_SPD_ILUMatrix() {
-//     int n = 4;
-//     int nnz = 10;
-//     double A_vals[10] = {4, -1, -1, 4, -1, -1, 4, -1, -1, 3};
-//     int cols_idx[10] = {0, 1, 0, 1, 2, 1, 2, 3, 2, 3};
-//     int rows_idx[5] = {0, 2, 5, 8, 10};
-//     double x_expected[4] = {1.0, 2.0, 3.0, 4.0};
-//     double b[4];
-//     memset(b, 0, n * sizeof(double));
-//     Matvec(n, nnz, rows_idx, cols_idx, A_vals, x_expected, b); // b = {2, 4, 6, 9}
+void test_CG_SPD_ILUMatrix() {
+    int n = 4;
+    int nnz = 10;
+    double A_vals[10] = {4, -1, -1, 4, -1, -1, 4, -1, -1, 3};
+    int cols_idx[10] = {0, 1, 0, 1, 2, 1, 2, 3, 2, 3};
+    int rows_idx[5] = {0, 2, 5, 8, 10};
+    double x_expected[4] = {1.0, 2.0, 3.0, 4.0};
+    double b[4];
+    memset(b, 0, n * sizeof(double));
+    Matvec(n, nnz, rows_idx, cols_idx, A_vals, x_expected, b); // b = {2, 4, 6, 9}
 
-//     double x_sol[4];
-//     memset(x_sol, 0, n * sizeof(double));
-//     double eps = 1e-9;
+    double x_sol[4];
+    memset(x_sol, 0, n * sizeof(double));
+    double eps = 1e-9;
 
-//     printf("\n--- Test CG: Matrice SPD de ILU ---\n");
-//     printf("Vecteur b calculé: [%f, %f, %f, %f]\n", b[0], b[1], b[2], b[3]);
-//     int iters = CG(n, nnz, rows_idx, cols_idx, A_vals, b, x_sol, eps);
-//     printf("CG (SPD ILU Matrix): Nombre d'itérations = %d\n", iters);
-//     printf("Solution obtenue:  x = [%f, %f, %f, %f]\n", x_sol[0], x_sol[1], x_sol[2], x_sol[3]);
-//     printf("Solution attendue: x = [%f, %f, %f, %f]\n", x_expected[0], x_expected[1], x_expected[2], x_expected[3]);
+    printf("\n--- Test CG: Matrice SPD de ILU ---\n");
+    printf("Vecteur b calculé: [%f, %f, %f, %f]\n", b[0], b[1], b[2], b[3]);
+    int iters = CG(n, nnz, rows_idx, cols_idx, A_vals, b, x_sol, eps);
+    printf("CG (SPD ILU Matrix): Nombre d'itérations = %d\n", iters);
+    printf("Solution obtenue:  x = [%f, %f, %f, %f]\n", x_sol[0], x_sol[1], x_sol[2], x_sol[3]);
+    printf("Solution attendue: x = [%f, %f, %f, %f]\n", x_expected[0], x_expected[1], x_expected[2], x_expected[3]);
 
-//     t_assert_int(iters, >, 0);
-//     t_assert_int(iters, <=, 2 * n); // Limite max_iter
-//     // Comparaison exacte : très probable d'échouer ici !
-//     t_assert_double(x_sol[0], ==, x_expected[0]);
-//     t_assert_double(x_sol[1], ==, x_expected[1]);
-//     t_assert_double(x_sol[2], ==, x_expected[2]);
-//     t_assert_double(x_sol[3], ==, x_expected[3]);
-//      printf("WARN: CG test with ILU matrix uses t_assert_double(==), likely to fail due to precision.\n");
-// }
+    t_assert_int(iters, >, 0);
+    t_assert_int(iters, <=, 2 * n); // Limite max_iter
+    // Comparaison exacte : très probable d'échouer ici !
+    t_assert_true(fabs(x_sol[0]-x_expected[0]) <= eps);
+    t_assert_true(fabs(x_sol[1]-x_expected[1]) <= eps);
+    t_assert_true(fabs(x_sol[2]-x_expected[2]) <= eps);
+    t_assert_true(fabs(x_sol[3]-x_expected[3]) <= eps);
+
+    // t_assert_double(x_sol[0], ==, x_expected[0]);
+    // t_assert_double(x_sol[1], ==, x_expected[1]);
+    // t_assert_double(x_sol[2], ==, x_expected[2]);
+    // t_assert_double(x_sol[3], ==, x_expected[3]);
+     printf("WARN: CG test with ILU matrix uses t_assert_double(==), likely to fail due to precision.\n");
+}
 
 // Test 5: Cas où x0 est déjà la solution (convergence immédiate)
 void test_CG_AlreadySolved() {
