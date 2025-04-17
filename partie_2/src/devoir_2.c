@@ -181,6 +181,7 @@ int CG(
 
     return k; 
 }
+
 void ILU(
     int n,
     int nnz,
@@ -202,7 +203,7 @@ void ILU(
             }
         }
 
-        if (ptr_kk == -1 || fabs(L_kk) < 1e-8) continue;
+        if (ptr_kk == -1 || fabs(L_kk) < 1e-12) continue;
 
         for (int j = k + 1; j < n; j++) {
             int ptr_jk = -1;
@@ -214,7 +215,9 @@ void ILU(
             }
 
             if (ptr_jk == -1) continue;
-
+            if(L_kk<0.001){
+                printf("%f", L_kk);
+            }
             L[ptr_jk] /= L_kk;
             double L_jk = L[ptr_jk];
 
