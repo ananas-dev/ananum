@@ -185,6 +185,52 @@ int CG(
     return k; 
 }
 
+int CSR_LU_solve(int n, int nnz, const int *rows_idx, const int *cols, const double *LU, double *b) {
+    int i, j, k;
+    double sum;
+    
+    // Forward substitution
+    for (i = 0; i < n; i++) {
+        sum = b[i];
+        for (j = rows_idx[i]; j < rows_idx[i+1]; j++) {
+            if (cols[j] < i) {
+                sum -= LU[j] * b[cols[j]];
+            } else {
+                break;
+            }
+        }
+        b[i] = sum;
+    }
+    
+    // Backward substitution
+    for (i = n - 1; i >= 0; i--) {
+        sum = b[i];
+        int diag_pos = -1;
+        
+        for (j = rows_idx[i]; j < rows_idx[i+1]; j++) {
+            if (cols[j] == i) {
+                diag_pos = j;
+                break;
+            }
+        }
+        
+        // Singular matrix
+        if (diag_pos == -1) {
+            return 1;
+        }
+        
+        for (j = diag_pos + 1; j < rows_idx[i+1]; j++) {
+            if (cols[j] > i) {
+                sum -= LU[j] * b[cols[j]];
+            }
+        }
+        
+        b[i] = sum / LU[diag_pos];
+    }
+
+    return 0;
+}
+
 void ILU(
     int n,
     int nnz,
@@ -218,10 +264,9 @@ void ILU(
             }
 
             if (ptr_jk == -1) continue;
-            if(L_kk<0.001){
-                printf("%f", L_kk);
-            }
+
             L[ptr_jk] /= L_kk;
+
             double L_jk = L[ptr_jk];
 
             for (int ptr_i = rows_idx[k]; ptr_i < rows_idx[k+1]; ptr_i++) {
@@ -262,7 +307,70 @@ int PCG(
     double *x,
     double eps)
 {
-    return 0;
+    int iter = 0;
+
+    double *M = malloc(nnz * sizeof(double));
+    double* r = calloc(n, sizeof(double));
+    double* z = calloc(n, sizeof(double));
+    double* d = calloc(n, sizeof(double));
+    double* Ad = calloc(n, sizeof(double));
+
+    ILU(n, nnz, rows_idx, cols, A, M);
+
+    // r_0 = b - Ax_0
+    Matvec(n, nnz, rows_idx, cols, A, b, r);
+
+    // Solve Mz_0 = r_0
+    memcpy(z, r, n * sizeof(double));
+    CSR_LU_solve(n, nnz, rows_idx, cols, M, z);
+
+    // d_0 = z_0
+    memcpy(d, z, n * sizeof(double));
+
+    double last_dot_rz = dot_product(n, r, z);
+    if (last_dot_rz < 1e-8) return -1;
+
+    double r_0_norm = dot_product(n, r, r);
+    if (r_0_norm < 1e-8) return -1;
+
+    int k = 1;
+    for(;;) {
+        // Compute Ad
+        Matvec(n, nnz, rows_idx, cols, A, d, Ad);
+
+        // alpha_k = (r^Tz)/(d^TAd)
+        double dot_d_Ad = dot_product(n, d, Ad);
+        if (dot_d_Ad < 1e-8) return -1;
+        double alpha = last_dot_rz / dot_d_Ad;
+
+        // x_k = x_(k-1) + alpha_k * d_(k-1);
+        axpy(n, alpha, d, x);
+
+        // r_k = r_(k-1) - alpha_k * Ad_(k-1)
+        axpy(n, -alpha, Ad, r);
+
+        if (sqrt(dot_product(n, r, r) / r_0_norm) < eps) {
+            iter++;
+            break;
+        }
+
+        // Solve Mz_k = r_k
+        memcpy(z, r, n * sizeof(double));
+        CSR_LU_solve(n, nnz, rows_idx, cols, M, z);
+
+        // beta_k = (r^T_k z_k)/(r^T_(k-1)z_(k-1))
+        double dot_rz = dot_product(n, r, z);
+        if (dot_rz < 1e-8) return -1;
+        double beta = dot_rz / last_dot_rz;
+        last_dot_rz = dot_rz;
+
+        // d_k = z + beta_k * d_(k-1);
+        axpy(n, beta, d, z);
+
+        iter++;
+    }
+
+    return iter;
 }
 
 int csr_sym()
