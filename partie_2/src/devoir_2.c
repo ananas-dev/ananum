@@ -202,7 +202,7 @@ void ILU(
             }
         }
 
-        if (ptr_kk == -1 || fabs(L_kk) < 1e-12) continue;
+        if (ptr_kk == -1 || fabs(L_kk) < 1e-8) continue;
 
         for (int j = k + 1; j < n; j++) {
             int ptr_jk = -1;
