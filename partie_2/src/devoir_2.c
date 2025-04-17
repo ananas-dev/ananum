@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include <assert.h>
 
 
 double dot_product(int n, const double *x, const double *y) {
@@ -51,20 +51,6 @@ void Matvec(
             Av[i] += val_A * v[col_idx];
         }
     }
-}
-
-void solve(
-    int n,
-    int nnz,
-    const int *rows_idx,
-    const int *cols,
-    const double *L,
-    const double *b,
-    double *x)
-{
-
-    
-
 }
 
 int CG(
@@ -133,12 +119,6 @@ int CG(
 
         // p_k^T * Ap_k
         pAp = dot_product(n, p, Ap);
-
-        // division par zéro ou un nombre très petit
-        if (fabs(pAp) < 1e-15) {
-             fprintf(stderr, "CG: Division par zéro (p^T A p ~ 0) à l'itération %d\n", k);
-             break; // Arrêter si pAp est trop petit
-        }
 
         // alpha_k = r_k^T * r_k / (p_k^T * Ap_k)
         alpha = r_sq_old / pAp; // r_sq_old contient r_k^T * r_k de l'itération précédente
@@ -215,7 +195,8 @@ int CSR_LU_solve(int n, int nnz, const int *rows_idx, const int *cols, const dou
         }
         
         // Singular matrix
-        if (diag_pos == -1) {
+        if (diag_pos == -1 || fabs(LU[diag_pos]) < 1e-14) {
+            fprintf(stderr, "Zero pivot at row %d\n", i);
             return 1;
         }
         
@@ -314,34 +295,37 @@ int PCG(
     double* z = calloc(n, sizeof(double));
     double* d = calloc(n, sizeof(double));
     double* Ad = calloc(n, sizeof(double));
+    
+
+    // Dispable ILU for now
 
     ILU(n, nnz, rows_idx, cols, A, M);
 
     // r_0 = b - Ax_0
-    Matvec(n, nnz, rows_idx, cols, A, b, r);
+    Matvec(n, nnz, rows_idx, cols, A, x, r);
+    for (int i = 0; i < n; i++) {
+        r[i] = b[i] - r[i];
+    }
 
     // Solve Mz_0 = r_0
     memcpy(z, r, n * sizeof(double));
-    CSR_LU_solve(n, nnz, rows_idx, cols, M, z);
+    assert(CSR_LU_solve(n, nnz, rows_idx, cols, M, z) == 0);
 
     // d_0 = z_0
     memcpy(d, z, n * sizeof(double));
 
     double last_dot_rz = dot_product(n, r, z);
-    if (last_dot_rz < 1e-8) return -1;
+    double r_0_norm = sqrt(dot_product(n, r, r));
 
-    double r_0_norm = dot_product(n, r, r);
-    if (r_0_norm < 1e-8) return -1;
-
-    int k = 1;
     for(;;) {
         // Compute Ad
+        memset(Ad, 0, sizeof(double) * n);
         Matvec(n, nnz, rows_idx, cols, A, d, Ad);
 
         // alpha_k = (r^Tz)/(d^TAd)
         double dot_d_Ad = dot_product(n, d, Ad);
-        if (dot_d_Ad < 1e-8) return -1;
-        double alpha = last_dot_rz / dot_d_Ad;
+        double alpha;
+        alpha = last_dot_rz / dot_d_Ad;
 
         // x_k = x_(k-1) + alpha_k * d_(k-1);
         axpy(n, alpha, d, x);
@@ -349,32 +333,37 @@ int PCG(
         // r_k = r_(k-1) - alpha_k * Ad_(k-1)
         axpy(n, -alpha, Ad, r);
 
-        if (sqrt(dot_product(n, r, r) / r_0_norm) < eps) {
+        if (sqrt(dot_product(n, r, r)) / r_0_norm < eps) {
             iter++;
             break;
         }
 
         // Solve Mz_k = r_k
         memcpy(z, r, n * sizeof(double));
-        CSR_LU_solve(n, nnz, rows_idx, cols, M, z);
+        assert(CSR_LU_solve(n, nnz, rows_idx, cols, M, z) == 0);
 
         // beta_k = (r^T_k z_k)/(r^T_(k-1)z_(k-1))
         double dot_rz = dot_product(n, r, z);
-        if (dot_rz < 1e-8) return -1;
-        double beta = dot_rz / last_dot_rz;
+        double beta;
+        beta = dot_rz / last_dot_rz;
         last_dot_rz = dot_rz;
 
         // d_k = z + beta_k * d_(k-1);
-        axpy(n, beta, d, z);
+        for (int i = 0; i < n; i++) {
+            d[i] = z[i] + beta * d[i];
+        }
 
         iter++;
     }
+
+pcg_end:
 
     free(Ad);
     free(d);
     free(z);
     free(r);
     free(M);
+
     return iter;
 }
 
