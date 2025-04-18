@@ -92,17 +92,36 @@ int main(int argc, char *argv[]) {
     SymBandMatrix *Kbd = model->K;
 
     // TODO : start
-
-
     CSRMatrix *Ksp = band_to_csr(Kbd); // or band_to_sym_csr(Kbd)
     double eps = 1e-8;
-    start = clock();
-    int iter = PCG(Ksp->n, Ksp->nnz, Ksp->row_ptr, Ksp->col_idx, Ksp->data, rhs, sol, eps);
-    end = clock();
+    // Allocate memory for temporary vectors
+    double *rhs_copy = (double *)malloc(2 * model->n_node * sizeof(double));
+    double *sol_copy = (double *)malloc(2 * model->n_node * sizeof(double));
 
+    // First PCG run
+    memcpy(rhs_copy, rhs, 2 * model->n_node * sizeof(double));
+    memcpy(sol_copy, sol, 2 * model->n_node * sizeof(double));
+    start = clock();
+    int iter = PCG(Ksp->n, Ksp->nnz, Ksp->row_ptr, Ksp->col_idx, Ksp->data, rhs_copy, sol_copy, eps);
+    end = clock();
     elapsed = ((double)end - start) / CLOCKS_PER_SEC;
-    printf("CG iter: %d\n", iter);
-    printf("%.2f secondes entre start et end.\n", elapsed);
+    printf("PCG iter: %d\n", iter);
+    printf("PCG time: %.2f seconds.\n", elapsed);
+
+    // Second CG run
+    memcpy(rhs_copy, rhs, 2 * model->n_node * sizeof(double));
+    memcpy(sol_copy, sol, 2 * model->n_node * sizeof(double));
+    start = clock();
+    int iter2 = CG(Ksp->n, Ksp->nnz, Ksp->row_ptr, Ksp->col_idx, Ksp->data, rhs_copy, sol_copy, eps);
+    end = clock();
+    elapsed = ((double)end - start) / CLOCKS_PER_SEC;
+    printf("CG iter: %d\n", iter2);
+    printf("CG time: %.2f seconds.\n", elapsed);
+
+    // Free temporary vectors
+    free(rhs_copy);
+    free(sol_copy);
+
     free_csr(Ksp);
     // TODO : end
 
