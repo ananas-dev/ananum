@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <time.h>
 
 
 double dot_product(int n, const double *x, const double *y) {
@@ -220,6 +221,11 @@ void ILU(
     const double *A,
     double *L)
 {
+    clock_t start, end;
+    double elapsed;
+    start = clock(); 
+    
+    
     memcpy(L, A, nnz * sizeof(double));
 
     for (int k = 0; k < n; k++) {
@@ -276,6 +282,11 @@ void ILU(
             }
         }
     }
+    end = clock();
+    elapsed = ((double)end - start) / CLOCKS_PER_SEC; /* Conversion en seconde  */
+ 
+ 
+    printf("ILU prend %.2fsecondes\n", elapsed);
 }
 
 int PCG(
