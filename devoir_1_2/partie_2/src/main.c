@@ -10,6 +10,10 @@
 #include <string.h>
 #include <time.h>
 
+#ifndef CLOCK_MONOTONIC
+#define CLOCK_MONOTONIC 1
+#endif
+
 #define VERBOSE 1
 #define PRECISION 10
 
@@ -55,8 +59,12 @@ void display_info(FE_Model *model, int step, struct timespec ts[4]) {
     }
 }
 
+// Fonction pour calculer la différence de temps en millisecondes
+double time_diff_ms(struct timespec start, struct timespec end) {
+    return (end.tv_sec - start.tv_sec) * 1000.0 + (end.tv_nsec - start.tv_nsec) / 1e6;
+}
+
 int main(int argc, char *argv[]) {
-    clock_t start, end;
     double elapsed;
 
     int ierr;
@@ -98,25 +106,27 @@ int main(int argc, char *argv[]) {
     double *rhs_copy = (double *)malloc(2 * model->n_node * sizeof(double));
     double *sol_copy = (double *)malloc(2 * model->n_node * sizeof(double));
 
+    struct timespec start, end;
+
     // First PCG run
     memcpy(rhs_copy, rhs, 2 * model->n_node * sizeof(double));
     memcpy(sol_copy, sol, 2 * model->n_node * sizeof(double));
-    start = clock();
+    clock_gettime(CLOCK_MONOTONIC, &start);
     int iter = PCG(Ksp->n, Ksp->nnz, Ksp->row_ptr, Ksp->col_idx, Ksp->data, rhs_copy, sol_copy, eps);
-    end = clock();
-    elapsed = ((double)end - start) / CLOCKS_PER_SEC;
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    elapsed = time_diff_ms(start, end);
     printf("PCG iter: %d\n", iter);
-    printf("PCG time: %.2f seconds.\n", elapsed);
+    printf("PCG time: %.2f ms.\n", elapsed);
 
     // Second CG run
     memcpy(rhs_copy, rhs, 2 * model->n_node * sizeof(double));
     memcpy(sol_copy, sol, 2 * model->n_node * sizeof(double));
-    start = clock();
+    clock_gettime(CLOCK_MONOTONIC, &start);
     int iter2 = CG(Ksp->n, Ksp->nnz, Ksp->row_ptr, Ksp->col_idx, Ksp->data, rhs_copy, sol_copy, eps);
-    end = clock();
-    elapsed = ((double)end - start) / CLOCKS_PER_SEC;
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    elapsed = time_diff_ms(start, end);
     printf("CG iter: %d\n", iter2);
-    printf("CG time: %.2f seconds.\n", elapsed);
+    printf("CG time: %.2f ms.\n", elapsed);
 
     // Free temporary vectors
     free(rhs_copy);

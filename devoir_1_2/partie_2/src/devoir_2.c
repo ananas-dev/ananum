@@ -3,8 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 #include <time.h>
+#include <assert.h>
 
 
 double dot_product(int n, const double *x, const double *y) {
@@ -221,11 +221,8 @@ void ILU(
     const double *A,
     double *L)
 {
-    clock_t start, end;
-    double elapsed;
-    start = clock(); 
     
-    
+      
     memcpy(L, A, nnz * sizeof(double));
 
     for (int k = 0; k < n; k++) {
@@ -282,11 +279,130 @@ void ILU(
             }
         }
     }
-    end = clock();
-    elapsed = ((double)end - start) / CLOCKS_PER_SEC; /* Conversion en seconde  */
- 
- 
-    printf("ILU prend %.2fsecondes\n", elapsed);
+}
+
+void ILUa(
+    int n,
+    int nnz,
+    const int *rows_idx,
+    const int *cols,
+    const double *A,
+    double *L)
+{
+    // 1. Copier la matrice A dans L pour commencer la factorisation en place.
+    memcpy(L, A, nnz * sizeof(double));
+
+    // 2. Allouer un tableau de lookup temporaire (taille n).
+    // col_map[col_idx] contiendra le pointeur (index dans L et cols) de l'élément
+    // à la colonne col_idx DANS LA LIGNE ACTUELLEMENT TRAITÉE (j), ou -1 si non présent.
+    int *col_map = (int*)malloc(n * sizeof(int));
+    // Allouer aussi un tableau pour se souvenir des colonnes modifiées dans col_map pour un reset rapide.
+    int *mapped_cols = (int*)malloc(n * sizeof(int)); // Taille max possible est n
+
+    if (!col_map || !mapped_cols) {
+        fprintf(stderr, "Erreur d'allocation mémoire dans ILU pour les tableaux temporaires.\n");
+        free(col_map); // Libérer ce qui a pu être alloué
+        free(mapped_cols);
+        // Dans une vraie application, il faudrait propager l'erreur.
+        // Ici, on pourrait sortir ou continuer avec une performance dégradée (non implémenté).
+        exit(EXIT_FAILURE);
+    }
+
+    // Initialiser col_map à -1 (indique qu'aucune colonne n'est mappée pour l'instant)
+    // On le fera plus précisément dans la boucle j pour chaque ligne.
+    // memset(col_map, -1, n * sizeof(int)); // Pas nécessaire si on le fait dans la boucle j
+
+
+    // 3. Boucle principale sur les lignes k (de 0 à n-1) qui servent de pivot.
+    for (int k = 0; k < n; k++) {
+
+        // Trouver la valeur et le pointeur du pivot L(k, k)
+        double pivot_val = 0.0;
+        int pivot_ptr = -1;
+        for (int ptr = rows_idx[k]; ptr < rows_idx[k+1]; ptr++) {
+            if (cols[ptr] == k) {
+                pivot_val = L[ptr];
+                pivot_ptr = ptr;
+                break;
+            }
+        }
+
+        // Vérifier si le pivot est (proche de) zéro.
+        // Si oui, on ne peut pas diviser par celui-ci. Pour ILU(0), on saute simplement
+        // les mises à jour provenant de cette ligne k.
+        // Note: Un pivot structurellement manquant (pivot_ptr == -1) est aussi un problème.
+        if (pivot_ptr == -1 || fabs(pivot_val) < 1e-12) {
+            // fprintf(stderr, "Attention: Pivot L(%d, %d) nul ou proche de zéro.\n", k, k);
+            continue; // Passer à la ligne k suivante
+        }
+
+        // Boucle sur les lignes j en dessous de k (j > k)
+        for (int j = k + 1; j < n; j++) {
+
+            // Trouver la valeur et le pointeur de l'élément L(j, k)
+            double L_jk_val = 0.0;
+            int L_jk_ptr = -1;
+            for (int ptr = rows_idx[j]; ptr < rows_idx[j+1]; ptr++) {
+                if (cols[ptr] == k) {
+                    L_jk_val = L[ptr];
+                    L_jk_ptr = ptr;
+                    break;
+                }
+            }
+
+            // Si L(j, k) n'existe pas dans la structure (sparsity pattern) de A,
+            // alors on ne fait rien pour cette paire (j, k) car ILU(0) n'introduit pas de nouveaux non-zéros.
+            if (L_jk_ptr == -1) {
+                continue; // Passer à la ligne j suivante
+            }
+
+            // Calculer le multiplicateur L(j, k) = L(j, k) / L(k, k)
+            double multiplier = L_jk_val / pivot_val;
+            L[L_jk_ptr] = multiplier; // Stocker le multiplicateur en place
+
+            // --- Optimisation: Construire le lookup map pour la ligne j ---
+            int mapped_count = 0;
+            for (int ptr = rows_idx[j]; ptr < rows_idx[j+1]; ptr++) {
+                int col = cols[ptr];
+                col_map[col] = ptr; // Stocker le pointeur pour cette colonne dans la ligne j
+                mapped_cols[mapped_count++] = col; // Se souvenir de la colonne mappée
+            }
+            // -------------------------------------------------------------
+
+            // Boucle sur les éléments L(k, i) dans la ligne k, où i > k
+            for (int ptr_ki = rows_idx[k]; ptr_ki < rows_idx[k+1]; ptr_ki++) {
+                int i = cols[ptr_ki]; // Colonne de l'élément L(k, i)
+
+                if (i > k) {
+                    double L_ki_val = L[ptr_ki]; // Valeur de L(k, i)
+
+                    // Utiliser le lookup map pour trouver L(j, i) rapidement
+                    int L_ji_ptr = col_map[i];
+
+                    // Si L(j, i) existe dans la structure de la ligne j (L_ji_ptr != -1 implicitement géré par la construction)
+                    // et que la colonne i a bien été mappée (vérification de sécurité, mais devrait être ok)
+                    if (L_ji_ptr != -1 && cols[L_ji_ptr] == i) { // La deuxième condition est une robustesse
+                       // Mise à jour: L(j, i) = L(j, i) - L(j, k) * L(k, i)
+                       //                         = L(j, i) - multiplier * L(k, i)
+                       L[L_ji_ptr] -= multiplier * L_ki_val;
+                    }
+                    // Si L(j, i) n'existe pas (L_ji_ptr == -1 ou n'était pas dans les colonnes mappées),
+                    // on ne fait rien (pas de fill-in pour ILU(0)).
+                }
+            }
+
+            // --- Optimisation: Nettoyer le lookup map pour la ligne j ---
+            // Réinitialiser seulement les entrées qui ont été utilisées pour cette ligne j
+            for (int idx = 0; idx < mapped_count; idx++) {
+                col_map[mapped_cols[idx]] = -1; // Marquer comme non mappé
+            }
+            // ----------------------------------------------------------
+        } // Fin boucle j
+    } // Fin boucle k
+
+    // 4. Libérer la mémoire allouée pour les tableaux temporaires
+    free(col_map);
+    free(mapped_cols);
 }
 
 int PCG(
@@ -309,8 +425,13 @@ int PCG(
     
 
     // Dispable ILU for now
-
+    clock_t start, end;
+    double elapsed;
+    start = clock(); 
     ILU(n, nnz, rows_idx, cols, A, M);
+    end = clock();
+    elapsed = ((double)end - start) / CLOCKS_PER_SEC; /* Conversion en seconde  */
+    printf("temps ILU : %.2f secondes\n", elapsed);
 
     // r_0 = b - Ax_0
     Matvec(n, nnz, rows_idx, cols, A, x, r);
