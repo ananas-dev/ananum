@@ -54,18 +54,61 @@ void display_info(FE_Model *model, int step, struct timespec ts[4]) {
     }
 }
 
-
+//./deformation <model> <lc> <T> <dt> <initial.txt> <final.txt> <time.txt> <I>
 int main(int argc, char *argv[]) {
 
+
+
+    //on check si tous les éléments donnés sont bons 
     int ierr;
     double mesh_size_ratio;
-    if ((argc < 3) || (sscanf(argv[2], "%lf", &mesh_size_ratio)) != 1) {
-        printf("Usage: \n./deformation <model> <mesh_size_ratio>\n");
-        printf("model: one of the model implemented in models/\n");
-        printf("mesh_size_ratio: mesh size factor\n");
+    double T_final;
+    double dt;
+    int node_I;
+    FILE *initial_file = fopen(argv[5], "r");
+    FILE *final_file = fopen(argv[6], "w");
+    FILE *time_file = fopen(argv[7], "w");
+    
+    if ((argc < 9) || (sscanf(argv[2], "%lf", &mesh_size_ratio)) != 1) { //0
+        printf("Erreur: Impossible de convertir <lf> ('%s') en double.\n");
+        return -1;
+    }
+    if(sscanf(argv[3], "%lf", &T_final) != 1){
+        printf("Erreur: Impossible de convertir <T_final> ('%s') en double.\n",argv[3]);
+        return -1;
+    }
+    if(sscanf(argv[4], "%lf", &dt) != 1){
+        printf("Erreur: Impossible de convertir <dt> ('%s') en double.\n", argv[4]);
+        return -1;
+    }
+    if(sscanf(argv[8], "%d", &node_I) != 1){
+        printf("Erreur: Impossible de convertir <I> ('%s') en entier.\n",argv[8]);
+        return -1;
+    }
+    if(initial_file == NULL){
+        printf("Erreur : impossible d'ouvrir le fichier %s\n", argv[5]);
+        return -1;
+    }
+    if(final_file == NULL){
+        printf("Erreur : impossible d'ouvrir le fichier %s\n", argv[6]);
+        return -1;
+    }
+    if(time_file == NULL){
+        printf("Erreur : impossible d'ouvrir le fichier %s\n", argv[7]);
         return -1;
     }
 
+    printf("Arguments et fichiers validés avec succès.\n");
+    printf("  Modèle: %s\n", argv[1]);
+    printf("  lc: %f\n", mesh_size_ratio);
+    printf("  T_final: %f\n", T_final);
+    printf("  dt: %f\n", dt);
+    printf("  Fichier initial: %s\n", argv[5]);
+    printf("  Fichier final: %s\n", argv[6]);
+    printf("  Fichier de temps: %s\n", argv[7]);
+    printf("  Noeud I: %d\n", node_I);
+    
+    
     // Simulation parameters
     const ElementType e_type = TRI;
     const Renumbering renum = RENUM_NO;  // let gmsh do the RCMK renumbering
@@ -76,6 +119,49 @@ int main(int argc, char *argv[]) {
     gmshInitialize(argc, argv, 0, 0, &ierr);
     gmshOptionSetNumber("General.Verbosity", 2, &ierr);
     model->mesh_model(mesh_size_ratio, e_type);
+
+    size_t n_dofs = 2 * model->n_node; 
+    double *q0 = (double*)malloc(n_dofs * sizeof(double));
+    double *q0_dot = (double*)malloc(n_dofs * sizeof(double));
+
+    if (q0 == NULL || q0_dot == NULL) {
+        fprintf(stderr, "Erreur : Échec de l'allocation mémoire pour les vecteurs de conditions initiales.\n");
+        if(q0) free(q0);
+        if(q0_dot) free(q0_dot);
+        return 1;
+    }
+
+    for(size_t i = 0; i<n_dofs; i++){
+        if(fscanf(initial_file, "%le %le %le %le\n", q0 +i*2, q0 +i*2 +1, q0_dot +i*2, q0_dot +i*2 +1) == EOF){
+            printf("EOF detected");
+        }
+    }
+
+    ////étape 2////
+    const double beta_newmark = 0.25;
+    const double gamma_newmark = 0.5;
+
+    double *q_n = (double*)malloc(n_dofs * sizeof(double));
+    double *p_n = (double*)malloc(n_dofs * sizeof(double));
+
+    double *rhs_newmark_eq3 = (double*)malloc(n_dofs * sizeof(double));
+    double *temp_vec_a = (double*)malloc(n_dofs * sizeof(double)); 
+    double *temp_vec_b = (double*)malloc(n_dofs * sizeof(double));
+
+    if (!q_n || !p_n || !rhs_newmark_eq3 || !temp_vec_a || !temp_vec_b) {
+        fprintf(stderr, "Erreur d'allocation mémoire pour les vecteurs de Newmark.\n");
+        // ... (ajouter la libération de toute mémoire déjà allouée et sortie propre) ...
+        free(q0); free(q0_dot); // Ceux de l'étape 1
+        if(q_n) free(q_n); if(p_n) free(p_n);
+        if(rhs_newmark_eq3) free(rhs_newmark_eq3); if(temp_vec_a) free(temp_vec_a); if(temp_vec_b) free(temp_vec_b);
+        if(final_file) fclose(final_file);
+        if(time_file) fclose(time_file);
+        return 1;
+    }
+
+
+
+
 
     load_mesh(model);
     renumber_nodes(model);
